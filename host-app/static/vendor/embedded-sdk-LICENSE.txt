@@ -1,0 +1,12 @@
+@superset-ui/embedded-sdk version 0.3.0
+
+Copyright The Apache Software Foundation
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+The minified bundle in embedded-sdk-0.3.0.js is the published
+browser build of that package.

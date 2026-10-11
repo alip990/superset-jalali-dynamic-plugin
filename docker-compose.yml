@@ -1,0 +1,115 @@
+name: superset-jalali
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: analytics
+      SUPERSET_DB_PASSWORD: ${SUPERSET_DB_PASSWORD}
+      ANALYTICS_RO_PASSWORD: ${ANALYTICS_RO_PASSWORD}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5444}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/analytics-db:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d analytics"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    shm_size: 128mb
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  superset-init:
+    build:
+      context: .
+      dockerfile: docker/superset/Dockerfile
+    image: superset-jalali:6.1.0
+    command: ["/app/docker/entrypoint-init.sh"]
+    env_file: .env
+    environment: &superset_env
+      SUPERSET_METADATA_URI: postgresql+psycopg2://superset:${SUPERSET_DB_PASSWORD}@postgres:5432/superset_meta
+      REDIS_URL: redis://redis:6379/0
+      REDIS_HOST: redis
+      SUPERSET_INTERNAL_URL: http://superset:8088
+      TZ: Asia/Tehran
+    volumes:
+      - ./docker/superset/superset_config.py:/app/pythonpath/superset_config.py:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  superset:
+    image: superset-jalali:6.1.0
+    env_file: .env
+    environment:
+      <<: *superset_env
+      SERVER_WORKER_AMOUNT: ${SERVER_WORKER_AMOUNT:-2}
+    ports:
+      - "${SUPERSET_PUBLISH_PORT:-8100}:8088"
+    volumes:
+      - ./docker/superset/superset_config.py:/app/pythonpath/superset_config.py:ro
+    depends_on:
+      superset-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8088/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    restart: unless-stopped
+
+  superset-bootstrap:
+    image: superset-jalali:6.1.0
+    user: root
+    command: ["python", "/app/bootstrap/bootstrap.py"]
+    env_file: .env
+    environment:
+      <<: *superset_env
+      ANALYTICS_SQLALCHEMY_URI: postgresql+psycopg2://superset_ro:${ANALYTICS_RO_PASSWORD}@postgres:5432/analytics
+      EMBED_INFO_PATH: /var/lib/jalali/embed.json
+    volumes:
+      - embed:/var/lib/jalali
+      - ./bootstrap:/app/bootstrap:ro
+      - ./docker/superset/superset_config.py:/app/pythonpath/superset_config.py:ro
+    depends_on:
+      superset:
+        condition: service_healthy
+
+  host-app:
+    build: ./host-app
+    env_file: .env
+    environment:
+      SUPERSET_INTERNAL_URL: http://superset:8088
+      EMBED_INFO_PATH: /var/lib/jalali/embed.json
+    ports:
+      - "${HOST_APP_PORT:-8101}:8090"
+    volumes:
+      - embed:/var/lib/jalali:ro
+      - ./host-app/app:/srv/app:ro
+    depends_on:
+      superset-bootstrap:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/healthz', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  pgdata:
+  embed:

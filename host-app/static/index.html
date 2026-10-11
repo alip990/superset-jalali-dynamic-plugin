@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>داشبورد فروش</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <header class="top">
+      <div>
+        <p class="eyebrow">نمای مهمان</p>
+        <h1>داشبورد فروش</h1>
+      </div>
+      <p id="who" class="who">کاربری انتخاب نشده</p>
+    </header>
+    <main>
+      <section class="users" id="users" aria-label="کاربران نمونه"></section>
+      <section class="stage">
+        <div id="overlay" class="overlay" hidden>در حال بارگذاری داشبورد…</div>
+        <p id="error" class="error" hidden></p>
+        <div id="dashboard"></div>
+      </section>
+    </main>
+    <script src="/static/vendor/embedded-sdk-0.3.0.js"></script>
+    <script src="/static/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,3 @@
+# ADR 004: Region security goes in the guest token, not the database
+
+Embedded viewers are not Superset users. The host app mints a short-lived guest token as `guest_token_service`, which holds only `can_grant_guest_token` on `SecurityRestApi`. The token's RLS clause is `region IN ('…')` with the value taken from a whitelist. Rules without a dataset id apply to the outer query of every dataset, so each embedded dataset exposes `region`. The token is not a place for the date filter or any other user-chosen filter. Changing the user remounts the iframe, because the embedded page accepts a new token and has no message to replace filters.

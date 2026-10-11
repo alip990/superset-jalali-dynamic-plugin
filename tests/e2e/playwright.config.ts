@@ -1,0 +1,11 @@
+import { defineConfig } from '@playwright/test';
+
+export default defineConfig({
+  testDir: '.',
+  timeout: 120_000,
+  use: {
+    baseURL: process.env.HOST_APP_URL || 'http://localhost:8101',
+    locale: 'fa-IR',
+    viewport: { width: 1280, height: 900 },
+  },
+});

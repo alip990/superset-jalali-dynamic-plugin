@@ -1,0 +1,48 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Python tests
+        run: |
+          python -m pip install -e packages/superset-jalali-sql[dev] -e packages/superset-jalali-datefilter[dev]
+          python -m pip install -r host-app/requirements.txt
+          python -m pytest -q
+      - name: JavaScript tests and bundle guards
+        working-directory: packages/superset-jalali-datefilter/frontend
+        run: |
+          npm ci
+          npm run gen
+          npm test
+          npx tsc --noEmit
+          npm run build
+
+  stack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compose
+        run: |
+          cp .env.example .env
+          docker compose up --build -d
+          docker compose ps
+      - name: Smoke
+        run: |
+          python -m pip install 'psycopg[binary]'
+          JALALI_TEST_DSN="postgresql://superset_ro:change-me-analytics-ro@127.0.0.1:5444/analytics" \
+          SUPERSET_ADMIN_PASSWORD=change-me-admin \
+          GUEST_TOKEN_SERVICE_PASSWORD=change-me-guest-token-service \
+          python tests/smoke/smoke.py
